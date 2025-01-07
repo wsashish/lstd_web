@@ -5,9 +5,9 @@
         ],
         "target": {
             "namespace": "android_app",
-            "package_name": "your.package.name",
+            "package_name": "com.webspiders.lstd",
             "sha256_cert_fingerprints": [
-                "YOUR:SHA256:FINGERPRINT:HERE"
+                "CB:82:11:4E:60:89:45:9B:56:60:0D:C4:8B:08:2F:40:A3:C0:22:4E:ED:B7:31:04:9D:8E:76:C4:CA:6C:E2:FC"
             ]
         }
     }
