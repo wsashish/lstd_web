@@ -1,5 +1,6 @@
 const { db } = require('../../config/firebase');
 const createError = require('http-errors');
+const imageService = require('../../services/image.service');
 
 const getAllLists = async (req, res, next) => {
     try {
@@ -7,7 +8,8 @@ const getAllLists = async (req, res, next) => {
             sort = 'recent',
             page = 1,
             limit = 10,
-            lastVisible = null
+            lastVisible = null,
+            currentUserId = null
         } = req.query;
 
         const pageSize = parseInt(limit);
@@ -50,38 +52,79 @@ const getAllLists = async (req, res, next) => {
 
         const lists = [];
         for (const doc of querySnapshot.docs) {
-            const listData = doc.data();
+            const listData = {
+                id: doc.id,
+                ...doc.data()
+            };
 
-            // Fetch hotels data
-            const populatedHotels = await Promise.all((listData.hotels || []).map(async (hotel) => {
-                const hotelDoc = await db.collection('hotels').doc(hotel.placeId).get();
-                if (hotelDoc.exists) {
-                    return {
-                        placeId: hotel.placeId,
-                        ...hotelDoc.data()
-                    };
-                }
-                return null;
-            }));
+            // Add isLiked flag if currentUserId is provided
+            if (currentUserId) {
+                listData.isLiked = listData.likedByUsers ? listData.likedByUsers.includes(currentUserId) : false;
+            }
 
-            // Fetch user data
-            let created = null;
+            // Fetch creator data
             if (listData.created_by) {
                 const userDoc = await db.collection('users').doc(listData.created_by).get();
                 if (userDoc.exists) {
-                    created = {
+                    const userData = userDoc.data();
+                    listData.creator = {
                         id: userDoc.id,
-                        ...userDoc.data()
+                        name: userData.name,
+                        email: userData.email,
+                        profile_pic: await imageService.getUserProfilePicUrl(userDoc.id)
                     };
                 }
             }
 
-            lists.push({
-                id: doc.id,
-                ...listData,
-                hotels: populatedHotels.filter(hotel => hotel !== null),
-                created
-            });
+            // Fetch hotels data
+            if (listData.hotels && listData.hotels.length > 0) {
+                const hotelPromises = listData.hotels.map(async (hotel) => {
+                    const hotelDoc = await db.collection('hotels').doc(hotel.placeId).get();
+                    if (hotelDoc.exists) {
+                        return {
+                            placeId: hotel.placeId,
+                            ...hotelDoc.data()
+                        };
+                    }
+                    return null;
+                });
+
+                const hotelDetails = await Promise.all(hotelPromises);
+                listData.hotels = hotelDetails.filter(hotel => hotel !== null);
+            } else {
+                listData.hotels = [];
+            }
+
+            // Fetch comments
+            const commentsSnapshot = await db.collection('comments')
+                .where('itemId', '==', doc.id)
+                .where('ishotel', '==', false)
+                .orderBy('CommentDate', 'desc')
+                .get();
+
+            const comments = [];
+            for (const commentDoc of commentsSnapshot.docs) {
+                const commentData = {
+                    id: commentDoc.id,
+                    ...commentDoc.data()
+                };
+
+                // Populate comment user information
+                const commentUserDoc = await db.collection('users').doc(commentData.userId).get();
+                if (commentUserDoc.exists) {
+                    const userData = commentUserDoc.data();
+                    commentData.user = {
+                        id: commentUserDoc.id,
+                        name: userData.name,
+                        profile_pic: await imageService.getUserProfilePicUrl(commentUserDoc.id)
+                    };
+                }
+
+                comments.push(commentData);
+            }
+
+            listData.comments = comments;
+            lists.push(listData);
         }
 
         res.json({
