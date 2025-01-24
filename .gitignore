@@ -73,3 +73,9 @@ serviceAccountKey.json
 
 # firebase config
 firebase.json
+firestore.rules
+firestore.indexes.json
+
+# .env
+.env
+
