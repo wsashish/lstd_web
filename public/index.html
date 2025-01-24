@@ -1,36 +1,86 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Firebase Hosted Site</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
       height: 100vh;
       margin: 0;
-      background-color: #f0f0f0;
+      background-color: #f5f5f5;
+      text-align: center;
     }
 
-    .container {
-      text-align: center;
-      padding: 20px;
-      background-color: white;
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    .store-button {
+      display: none;
+      background-color: #01875f;
+      color: white;
+      padding: 12px 24px;
       border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .store-button:hover {
+      background-color: #016d4e;
+    }
+
+    .desktop-message {
+      display: none;
+      color: #666;
+      font-size: 16px;
+      max-width: 80%;
+      line-height: 1.5;
     }
   </style>
+  <script>
+    function isMobileDevice() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    window.onload = function () {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref');
+
+      if (isMobileDevice()) {
+        // Try to open app on mobile
+        window.location.href = `lstd://app/invite?ref=${ref}`;
+
+        // Show Play Store button after 1 second on mobile
+        setTimeout(function () {
+          document.getElementById('playStoreButton').style.display = 'block';
+          document.getElementById('loadingText').style.display = 'none';
+        }, 1000);
+      } else {
+        // Show desktop message immediately
+        document.getElementById('loadingText').style.display = 'none';
+        document.getElementById('desktopMessage').style.display = 'block';
+      }
+    }
+  </script>
 </head>
 
 <body>
-  <div class="container">
-    <h1>Welcome to My Firebase Site!</h1>
-    <p>This site is hosted on Firebase Hosting 🔥</p>
-  </div>
+  <h1 id="loadingText">Opening LSTD app...</h1>
+  <p id="desktopMessage" class="desktop-message">
+    Please visit this link on your mobile device to download the LSTD app.
+  </p>
+  <a id="playStoreButton" href="https://play.google.com/store/apps/details?id=com.webspiders.lstd" class="store-button">
+    Get it on Play Store
+  </a>
 </body>
 
 </html>
