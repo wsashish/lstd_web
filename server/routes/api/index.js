@@ -3,9 +3,11 @@ const router = require("express").Router();
 
 const notification = require("./notification");
 const lists = require("./lists");
+const users = require("./users");
 
 router.use("/notification", notification);
 router.use("/lists", lists);
+router.use("/users", users);
 
 router.get("/test", (req, res) => {
     res.status(200).json({
