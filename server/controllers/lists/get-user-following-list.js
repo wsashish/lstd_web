@@ -7,7 +7,14 @@ const getUserFollowingList = async (req, res) => {
         const currentUserId = req.query.currentUserId;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
-        const lastVisible = req.query.lastVisible || null;
+
+        // Validate pagination parameters
+        if (page < 1 || limit < 1 || limit > 50) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid pagination parameters. Page must be >= 1 and limit must be between 1 and 50'
+            });
+        }
 
         // Get the user document to fetch their following list
         const userDoc = await db.collection('users').doc(userId).get();
@@ -25,10 +32,11 @@ const getUserFollowingList = async (req, res) => {
                 data: [],
                 pagination: {
                     total: 0,
-                    page,
+                    totalPages: 0,
+                    currentPage: page,
                     limit,
-                    hasMore: false,
-                    lastVisible: null
+                    hasNextPage: false,
+                    hasPrevPage: false
                 }
             });
         }
@@ -40,23 +48,16 @@ const getUserFollowingList = async (req, res) => {
             .get();
 
         const total = totalQuery.data().count;
+        const totalPages = Math.ceil(total / limit);
 
-        // Build the base query
-        let query = db.collection('lists')
+        // Build the query with offset-based pagination
+        const query = db.collection('lists')
             .where('created_by', 'in', following)
             .orderBy('created_date', 'desc')
-            .limit(limit);
-
-        // If we have a last document, start after it
-        if (lastVisible) {
-            const lastDoc = await db.collection('lists').doc(lastVisible).get();
-            if (lastDoc.exists) {
-                query = query.startAfter(lastDoc);
-            }
-        }
+            .limit(limit)
+            .offset((page - 1) * limit);
 
         const listsSnapshot = await query.get();
-        const lastVisibleDoc = listsSnapshot.docs[listsSnapshot.docs.length - 1];
 
         const lists = [];
         for (const doc of listsSnapshot.docs) {
@@ -136,10 +137,11 @@ const getUserFollowingList = async (req, res) => {
             data: lists,
             pagination: {
                 total,
-                page,
+                totalPages,
+                currentPage: page,
                 limit,
-                hasMore: listsSnapshot.docs.length === limit,
-                lastVisible: lastVisibleDoc ? lastVisibleDoc.id : null
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1
             }
         });
     } catch (error) {
