@@ -7,6 +7,9 @@ const getUserList = async (req, res) => {
         const currentUserId = req.query.currentUserId;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
+        const lastVisible = req.query.lastVisible || null;
+
+        console.log(userId, currentUserId, page, limit, lastVisible);
 
         // Get total count first
         const totalQuery = await db.collection('lists')
@@ -17,14 +20,23 @@ const getUserList = async (req, res) => {
 
         const total = totalQuery.data().count;
 
-        // Get paginated lists
-        const listsSnapshot = await db.collection('lists')
+        // Build the base query
+        let query = db.collection('lists')
             .where('created_by', '==', userId)
             .where('isDeleted', '==', false)
             .orderBy('created_date', 'desc')
-            .limit(limit)
-            .offset((page - 1) * limit)
-            .get();
+            .limit(limit);
+
+        // If we have a last document, start after it
+        if (lastVisible) {
+            const lastDoc = await db.collection('lists').doc(lastVisible).get();
+            if (lastDoc.exists) {
+                query = query.startAfter(lastDoc);
+            }
+        }
+
+        const listsSnapshot = await query.get();
+        const lastVisibleDoc = listsSnapshot.docs[listsSnapshot.docs.length - 1];
 
         const lists = [];
         for (const doc of listsSnapshot.docs) {
@@ -108,7 +120,8 @@ const getUserList = async (req, res) => {
                 total,
                 page,
                 limit,
-                hasMore: total > page * limit
+                hasMore: listsSnapshot.docs.length === limit,
+                lastVisible: lastVisibleDoc ? lastVisibleDoc.id : null
             }
         });
     } catch (error) {

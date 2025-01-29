@@ -8,12 +8,20 @@ const getAllLists = async (req, res, next) => {
             sort = 'recent',
             page = 1,
             limit = 10,
-            lastVisible = null,
             currentUserId = null
         } = req.query;
 
         const pageSize = parseInt(limit);
         const currentPage = parseInt(page);
+
+        // Get total count first
+        const totalQuery = await db.collection('lists')
+            .where('isDeleted', '==', false)
+            .where('listPublic', '==', true)
+            .count()
+            .get();
+
+        const total = totalQuery.data().count;
 
         let listsRef = db.collection('lists');
         let query = listsRef
@@ -36,19 +44,13 @@ const getAllLists = async (req, res, next) => {
                 query = query.orderBy('created_date', 'desc');
         }
 
-        // Apply pagination
-        if (lastVisible) {
-            const lastDoc = await db.collection('lists').doc(lastVisible).get();
-            if (lastDoc.exists) {
-                query = query.startAfter(lastDoc);
-            }
-        }
-
-        query = query.limit(pageSize);
+        // Apply pagination using offset
+        query = query
+            .limit(pageSize)
+            .offset((currentPage - 1) * pageSize);
 
         // Get documents
         const querySnapshot = await query.get();
-        const lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
 
         const lists = [];
         for (const doc of querySnapshot.docs) {
@@ -131,10 +133,10 @@ const getAllLists = async (req, res, next) => {
             success: true,
             data: lists,
             pagination: {
+                total,
                 currentPage,
                 pageSize,
-                lastVisible: lastVisibleDoc ? lastVisibleDoc.id : null,
-                hasMore: querySnapshot.docs.length === pageSize
+                hasMore: total > currentPage * pageSize
             }
         });
     } catch (error) {

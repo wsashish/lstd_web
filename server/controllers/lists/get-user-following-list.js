@@ -7,7 +7,7 @@ const getUserFollowingList = async (req, res) => {
         const currentUserId = req.query.currentUserId;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
-
+        const lastVisible = req.query.lastVisible || null;
 
         // Get the user document to fetch their following list
         const userDoc = await db.collection('users').doc(userId).get();
@@ -27,7 +27,8 @@ const getUserFollowingList = async (req, res) => {
                     total: 0,
                     page,
                     limit,
-                    hasMore: false
+                    hasMore: false,
+                    lastVisible: null
                 }
             });
         }
@@ -40,13 +41,22 @@ const getUserFollowingList = async (req, res) => {
 
         const total = totalQuery.data().count;
 
-        // Get paginated lists where created_by is in the following array
-        const listsSnapshot = await db.collection('lists')
+        // Build the base query
+        let query = db.collection('lists')
             .where('created_by', 'in', following)
             .orderBy('created_date', 'desc')
-            .limit(limit)
-            .offset((page - 1) * limit)
-            .get();
+            .limit(limit);
+
+        // If we have a last document, start after it
+        if (lastVisible) {
+            const lastDoc = await db.collection('lists').doc(lastVisible).get();
+            if (lastDoc.exists) {
+                query = query.startAfter(lastDoc);
+            }
+        }
+
+        const listsSnapshot = await query.get();
+        const lastVisibleDoc = listsSnapshot.docs[listsSnapshot.docs.length - 1];
 
         const lists = [];
         for (const doc of listsSnapshot.docs) {
@@ -128,7 +138,8 @@ const getUserFollowingList = async (req, res) => {
                 total,
                 page,
                 limit,
-                hasMore: total > page * limit
+                hasMore: listsSnapshot.docs.length === limit,
+                lastVisible: lastVisibleDoc ? lastVisibleDoc.id : null
             }
         });
     } catch (error) {
