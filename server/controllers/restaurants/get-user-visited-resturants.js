@@ -56,12 +56,18 @@ const getUserVisitedRestaurants = async (req, res) => {
             const visitedData = doc.data();
             const placeId = visitedData.placeId;
 
+            // Skip if placeId is not valid
+            if (!placeId || typeof placeId !== 'string') {
+                console.warn(`Invalid placeId found for visit document ${doc.id}`);
+                continue;
+            }
+
             // Get restaurant details from hotels collection
             const hotelDoc = await hotelsRef.doc(placeId).get();
 
             if (hotelDoc.exists) {
                 restaurants.push({
-                    placeId: hotelDoc.placeId,
+                    placeId,
                     ...hotelDoc.data(),
                     visitedDate: visitedData.viewedDate,
                     visitId: doc.id
