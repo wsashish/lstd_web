@@ -8,6 +8,8 @@ const getUserList = require("./lists/get-user-list");
 const addFollow = require("./user/add-follow");
 const unfollow = require("./user/unfollow");
 const removeFollow = require("./user/remove-follow");
+const getList = require("./lists/get-list");
+const { getListDetails } = require("./lists/get-list-details");
 
 module.exports = {
     getAllNotification,
@@ -19,7 +21,10 @@ module.exports = {
     getUserList,
     addFollow,
     unfollow,
-    removeFollow
+    removeFollow,
+    getList,
+    getListDetails
 };
+
 
 
